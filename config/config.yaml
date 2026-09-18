@@ -1,0 +1,24 @@
+base_url: "https://saucedemo.com"
+
+browser: chrome
+headless: false
+
+#Chrome Driver Configuration for CI/CD enviroments
+chrome_options:
+  # Essesntial flags for running Chrome in a headless environment
+  flags:
+    - "--disable-gpu"
+    - "--no-sandbox"
+    - "--disable-dev-shm-usage" 
+  stability_flags:
+    - "--disable-extensions"
+    - "--disable-plugins"
+    - "--disable-images"
+    - "--disable-web-security"
+    - "--allow-running-insecure-content"
+  
+  # Window size 1920, 1080
+  window_size: "--window-size=1920,1080"
+
+  # Headless mode flag
+  headless_flag: "--headless=new"
