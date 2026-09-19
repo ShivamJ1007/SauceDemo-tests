@@ -1,7 +1,7 @@
 base_url: "https://saucedemo.com"
 
 browser: chrome
-headless: false
+headless: true
 
 #Chrome Driver Configuration for CI/CD enviroments
 chrome_options:

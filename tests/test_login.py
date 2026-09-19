@@ -1,16 +1,20 @@
 from pages.loginpage import Login
-from pages.homepage import Homepage
+from pages.inventorypage import InventoryPage
 from utils.user_data_loader import get_user
 from utils.config_loader import load_config
-
+from utils.wait_helper import WaitHelper
+import time
 
 # Load config and test data
 config = load_config()
 
-def test_login(driver):
-    driver.get("https://www.saucedemo.com/")
+def test_login(driver, base_url):
     login_page = Login(driver)
-    homepage = Homepage(driver)
+    inventory_page = InventoryPage(driver)
+    wait_helper = WaitHelper(driver)
     user = get_user()
+
+    driver.get(base_url)
     login_page.login(user["username"],user["password"])
-    assert homepage.driver.find_element(*homepage.INVENTORY_HEADING).is_displayed(), f"Some Error Occurred while login with {user['username']}"
+    wait_helper.wait_for_element_visible(inventory_page.INVENTORY_HEADING)
+    assert inventory_page.driver.find_element(*inventory_page.INVENTORY_HEADING).is_displayed(), f"Some Error Occurred while login with {user['username']}"

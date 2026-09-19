@@ -2,10 +2,14 @@ import pytest
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from utils.config_loader import load_config
+from pages.loginpage import Login
+from utils.screenshot_utils import ScreenshotUtil
+from utils.user_data_loader import get_user
 
 
 def pytest_addoption(parser):
-    """Add command-line options for browser configuration."""
+    """Add command-line options for browser execution."""
 
     parser.addoption(
         "--browser",
@@ -23,54 +27,129 @@ def pytest_addoption(parser):
     )
 
 
-def create_driver(browser, headless):
-    """Create and configure the WebDriver instance."""
+def create_driver(browser_name, headless):
+    """Create and configure a WebDriver instance."""
 
-    if browser == "chrome":
+    if browser_name == "chrome":
         options = ChromeOptions()
 
-        if headless:
-            options.add_argument("--headless=new")
+        # Disable Chrome password manager and password breach popup
+        options.add_experimental_option(
+            "prefs",
+            {
+                "credentials_enable_service": False,
+                "profile.password_manager_enabled": False,
+                "profile.password_manager_leak_detection": False,
+            },
+        )
 
-        options.add_argument("--start-maximized")
+        options.add_argument(
+            "--disable-features="
+            "PasswordLeakDetection,PasswordManagerOnboarding"
+        )
         options.add_argument("--disable-notifications")
         options.add_argument("--disable-popup-blocking")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
 
-        driver = webdriver.Chrome(options=options)
+        if headless:
+            options.add_argument("--headless=new")
+            options.add_argument("--window-size=1920,1080")
+        else:
+            options.add_argument("--start-maximized")
 
-    elif browser == "firefox":
+        browser = webdriver.Chrome(options=options)
+
+    elif browser_name == "firefox":
         options = FirefoxOptions()
 
         if headless:
             options.add_argument("--headless")
 
-        driver = webdriver.Firefox(options=options)
-        driver.maximize_window()
+        browser = webdriver.Firefox(options=options)
+
+        if headless:
+            browser.set_window_size(1920, 1080)
+        else:
+            browser.maximize_window()
 
     else:
-        raise ValueError(f"Unsupported browser: {browser}")
+        raise ValueError(
+            f"Unsupported browser: {browser_name}"
+        )
 
-    driver.set_page_load_timeout(30)
-    driver.set_script_timeout(30)
+    browser.set_page_load_timeout(30)
+    browser.set_script_timeout(30)
 
-    return driver
+    return browser
 
 
 @pytest.fixture(scope="function")
 def driver(request):
     """
-    Create a fresh WebDriver instance for every test and close it
-    after the test execution.
+    Create a fresh browser session for every test and terminate it
+    after the test finishes.
     """
 
-    browser = request.config.getoption("--browser")
+    browser_name = request.config.getoption("--browser")
     headless = request.config.getoption("--headless")
 
-    web_driver = create_driver(browser, headless)
+    browser = create_driver(browser_name, headless)
 
-    yield web_driver
+    yield browser
 
-    if web_driver:
-        web_driver.quit()
+    browser.quit()
+
+
+@pytest.fixture(scope="function")
+def logged_in_driver(driver):
+    """Open SauceDemo and log in before executing a test."""
+
+    driver.get("https://www.saucedemo.com/")
+
+    user = get_user()
+
+    if not user["username"] or not user["password"]:
+        pytest.fail(
+            "SauceDemo credentials are missing from the .env file."
+        )
+
+    login_page = Login(driver)
+    login_page.login(
+        user["username"],
+        user["password"],
+    )
+
+    return driver
+
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Capture a screenshot after every test execution."""
+
+    outcome = yield
+    report = outcome.get_result()
+
+    if report.when != "call":
+        return
+
+    browser = item.funcargs.get("driver")
+
+    if browser:
+        ScreenshotUtil.save_screenshot(
+            browser,
+            name_prefix=f"{item.name}_{report.outcome}",
+        )
+
+@pytest.fixture(scope="session")
+def base_url():
+    """Return the SauceDemo application URL from config.yaml"""
+
+    config = load_config()
+    url = config.get("base_url")
+
+    if not url:
+        pytest.fail(
+            "The 'base_url' value is missing from config.yaml."
+        )
+    return url
