@@ -16,6 +16,9 @@ class CartPage:
     def get_cart_item_count(self):
         cart_items = self.wait.wait_for_all_element_located(self.CART_ITEMS)
         return len(cart_items)
+    
+    def click_checkout_button(self):
+        self.driver.find_element(*self.CHECKOUT_BUTTON).click()
 
     def get_product_names(self):
         product_elements = self.driver.find_elements(*self.PRODUCT_NAMES)

@@ -42,4 +42,4 @@ def test_cart_products(driver,base_url):
     assert sorted(actual_products) == sorted(expected_products), (
         f"Expected {expected_products}, but found {actual_products}"
     )
-    cart_page.driver.find_element(*cart_page.CHECKOUT_BUTTON).click()
+    cart_page.click_checkout_button()

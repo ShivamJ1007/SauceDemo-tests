@@ -70,3 +70,10 @@ class CheckoutPage:
 
     def get_confirmation_text(self):
         return self.driver.find_element(*self.CONFIRMATION_TEXT).text
+
+    def download_order_pdf(self):
+        download_button = self.wait.wait_for_element_clickable(
+            self.GENERATE_PDF_ORDER
+        )
+
+        download_button.click()

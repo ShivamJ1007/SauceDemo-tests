@@ -4,8 +4,8 @@ A Pytest automation framework for the Sauce Demo application, built using Python
 ## Quick Start
 ```bash
 # Clone the repository
-git clone <repo-url>
-cd saucedemo-pytest-automation
+git clone https://github.com/ShivamJ1007/SauceDemo-tests.git
+cd SauceDemo-tests
 
 # Create and activate virtual environment
 python -m venv .venv
@@ -25,8 +25,7 @@ pytest
 ├── utils/             # Common utilities and PDF helper
 ├── config/            # Test configuration
 ├── testdata/          # Checkout test data
-├── reports/           # HTML execution reports
-├── screenshots/       # Failure screenshots
+├── reports/           # HTML execution Screenshots
 ├── order_summary/     # Generated order-summary PDF
 ├── conftest.py        # Pytest fixtures and hooks
 ├── pytest.ini         # Pytest configuration

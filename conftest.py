@@ -6,7 +6,13 @@ from utils.config_loader import load_config
 from pages.loginpage import Login
 from utils.screenshot_utils import ScreenshotUtil
 from utils.user_data_loader import get_user
+from pathlib import Path
 
+DOWNLOAD_DIRECTORY = (
+    Path(__file__).resolve().parent / "order_summary"
+)
+
+DOWNLOAD_DIRECTORY.mkdir(exist_ok=True)
 
 def pytest_addoption(parser):
     """Add command-line options for browser execution."""
@@ -40,6 +46,12 @@ def create_driver(browser_name, headless):
                 "credentials_enable_service": False,
                 "profile.password_manager_enabled": False,
                 "profile.password_manager_leak_detection": False,
+                "download.default_directory": str(
+                    DOWNLOAD_DIRECTORY.resolve()
+                ),
+                "download.prompt_for_download": False,
+                "download.directory_upgrade": True,
+                "plugins.always_open_pdf_externally": True,
             },
         )
 
@@ -59,6 +71,15 @@ def create_driver(browser_name, headless):
             options.add_argument("--start-maximized")
 
         browser = webdriver.Chrome(options=options)
+        browser.execute_cdp_cmd(
+        "Page.setDownloadBehavior",
+        {
+            "behavior": "allow",
+            "downloadPath": str(
+                DOWNLOAD_DIRECTORY.resolve()
+            ),
+        },
+    )
 
     elif browser_name == "firefox":
         options = FirefoxOptions()
@@ -100,32 +121,9 @@ def driver(request):
 
     browser.quit()
 
-
-@pytest.fixture(scope="function")
-def logged_in_driver(driver):
-    """Open SauceDemo and log in before executing a test."""
-
-    driver.get("https://www.saucedemo.com/")
-
-    user = get_user()
-
-    if not user["username"] or not user["password"]:
-        pytest.fail(
-            "SauceDemo credentials are missing from the .env file."
-        )
-
-    login_page = Login(driver)
-    login_page.login(
-        user["username"],
-        user["password"],
-    )
-
-    return driver
-
-
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
-    """Capture a screenshot after every test execution."""
+    """Capture a screenshot only when a test fails."""
 
     outcome = yield
     report = outcome.get_result()
@@ -135,10 +133,10 @@ def pytest_runtest_makereport(item, call):
 
     browser = item.funcargs.get("driver")
 
-    if browser:
+    if browser and report.failed:
         ScreenshotUtil.save_screenshot(
             browser,
-            name_prefix=f"{item.name}_{report.outcome}",
+            name_prefix=f"{item.name}_failed",
         )
 
 @pytest.fixture(scope="session")

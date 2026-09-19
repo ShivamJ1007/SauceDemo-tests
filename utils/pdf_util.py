@@ -1,137 +1,46 @@
+import time
+from pathlib import Path
+
 from pypdf import PdfReader
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import inch
-import os
-from reportlab.platypus import (Paragraph,SimpleDocTemplate,Spacer,Table,TableStyle,)
 
 
 class PDFUtil:
 
     @staticmethod
-    def generate_order_summary(
-        file_path,
-        customer_name,
-        product_names,
-        product_prices,
-        item_total,
-        tax,
-        final_total,
-        order_status,
+    def wait_for_pdf_download(
+        download_directory,
+        timeout=20
     ):
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        download_directory = Path(download_directory)
+        end_time = time.time() + timeout
 
-        document = SimpleDocTemplate(
-            file_path,
-            pagesize=A4,
-            rightMargin=50,
-            leftMargin=50,
-            topMargin=50,
-            bottomMargin=50,
-        )
-
-        styles = getSampleStyleSheet()
-        content = []
-
-        content.append(
-            Paragraph("SauceDemo Order Summary", styles["Title"])
-        )
-
-        content.append(Spacer(1, 20))
-
-        content.append(
-            Paragraph(
-                f"<b>Customer:</b> {customer_name}",
-                styles["Normal"],
-            )
-        )
-
-        content.append(Spacer(1, 15))
-
-        product_data = [["Product", "Price"]]
-
-        for index in range(len(product_names)):
-            product_data.append(
-                [
-                    product_names[index],
-                    product_prices[index],
-                ]
+        while time.time() < end_time:
+            partial_downloads = list(
+                download_directory.glob("*.crdownload")
             )
 
-        product_table = Table(
-            product_data,
-            colWidths=[4.5 * inch, 1.5 * inch],
-        )
-
-        product_table.setStyle(
-            TableStyle(
-                [
-                    (
-                        "BACKGROUND",
-                        (0, 0),
-                        (-1, 0),
-                        colors.HexColor("#E2231A"),
-                    ),
-                    (
-                        "TEXTCOLOR",
-                        (0, 0),
-                        (-1, 0),
-                        colors.white,
-                    ),
-                    (
-                        "FONTNAME",
-                        (0, 0),
-                        (-1, 0),
-                        "Helvetica-Bold",
-                    ),
-                    (
-                        "GRID",
-                        (0, 0),
-                        (-1, -1),
-                        1,
-                        colors.grey,
-                    ),
-                    (
-                        "PADDING",
-                        (0, 0),
-                        (-1, -1),
-                        8,
-                    ),
-                ]
+            pdf_files = list(
+                download_directory.glob("*.pdf")
             )
+
+            if (
+                pdf_files
+                and not partial_downloads
+            ):
+                downloaded_pdf = max(
+                    pdf_files,
+                    key=lambda file: file.stat().st_mtime
+                )
+
+                if downloaded_pdf.stat().st_size > 0:
+                    return downloaded_pdf
+
+            time.sleep(0.5)
+
+        raise TimeoutError(
+            "Order-summary PDF was not downloaded "
+            f"within {timeout} seconds."
         )
-
-        content.append(product_table)
-        content.append(Spacer(1, 20))
-
-        content.append(
-            Paragraph(item_total, styles["Normal"])
-        )
-
-        content.append(
-            Paragraph(tax, styles["Normal"])
-        )
-
-        content.append(
-            Paragraph(
-                f"<b>{final_total}</b>",
-                styles["Normal"],
-            )
-        )
-
-        content.append(Spacer(1, 20))
-
-        content.append(
-            Paragraph(
-                f"<b>Order Status:</b> {order_status}",
-                styles["Normal"],
-            )
-        )
-
-        document.build(content)
-
-        return file_path
 
     @staticmethod
     def read_pdf(file_path):
@@ -142,6 +51,6 @@ class PDFUtil:
             page_text = page.extract_text()
 
             if page_text:
-                pdf_text += page_text
+                pdf_text += page_text + "\n"
 
-        return pdf_text
+        return pdf_text 
